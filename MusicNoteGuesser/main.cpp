@@ -1,53 +1,69 @@
 #include "raylib.h"
-#include <vector>
 #include <string>
 #include <cmath>
+#include <vector>
 
 // --- Configuration ---
-const int screenWidth = 800;
-const int screenHeight = 600;
+const int screenWidth = 1000;
+const int screenHeight = 650;
 const int sampleRate = 44100;
 
-// Key mapping
-int GetMidiFromKey(int key) {
-    switch (key) {
-        // --- Bottom Row ---
-        case KEY_Z: return 60; case KEY_S: return 61; case KEY_X: return 62;
-        case KEY_D: return 63; case KEY_C: return 64; case KEY_V: return 65;
-        case KEY_G: return 66; case KEY_B: return 67; case KEY_H: return 68;
-        case KEY_N: return 69; case KEY_J: return 70; case KEY_M: return 71;
-
-        // --- Top Row ---
-        case KEY_Q: return 72; case KEY_TWO: return 73; case KEY_W: return 74;
-        case KEY_THREE: return 75; case KEY_E: return 76; case KEY_R: return 77;
-        case KEY_FIVE: return 78; case KEY_T: return 79; case KEY_SIX: return 80;
-        case KEY_Y: return 81; case KEY_SEVEN: return 82; case KEY_U: return 83;
-
-        default: return -1;
-    }
-}
-
-std::string GetNoteName(int midi) {
-    std::string names[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
-    return names[midi % 12] + std::to_string((midi / 12) - 1);
-}
-
-// --- Audio State ---
+// --- Synth Logic ---
 float frequency = 0.0f;
 float audioTime = 0.0f;
 float volume = 0.0f;
 
+// Triangle wave formula: 2/PI * asin(sin(2*PI * f * t))
+float GenerateTriangle(float freq, float time) {
+    if (freq <= 0) return 0.0f;
+    return (2.0f / PI) * asinf(sinf(2.0f * PI * freq * time));
+}
+
 void MyAudioCallback(void* buffer, unsigned int frames) {
-    float* out = (float*)buffer;
+    float* fbuf = (float*)buffer;
     for (unsigned int i = 0; i < frames; i++) {
-        out[i] = sinf(2.0f * PI * frequency * audioTime) * volume;
+        fbuf[i] = GenerateTriangle(frequency, audioTime) * volume;
         audioTime += 1.0f / sampleRate;
-        volume *= 0.9995f; 
+        volume *= 0.99994f; // Decay over time
     }
 }
 
+void TriggerNote(int midi) {
+    frequency = 440.0f * powf(2.0f, (midi - 69) / 12.0f);
+    volume = 0.4f;
+    audioTime = 0.0f; // Reset phase to avoid clicks
+}
+
+// --- Key Mapping (FL Studio Style) ---
+int GetMidiFromKey(int key) {
+    switch (key) {
+        // Bottom Row: C4 - E5 (White)
+    case KEY_Z: return 60; case KEY_X: return 62; case KEY_C: return 64; case KEY_V: return 65;
+    case KEY_B: return 67; case KEY_N: return 69; case KEY_M: return 71; case KEY_COMMA: return 72;
+    case KEY_PERIOD: return 74; case KEY_SLASH: return 76;
+        // Top Row: C5 - E6 (White)
+    case KEY_Q: return 72; case KEY_W: return 74; case KEY_E: return 76; case KEY_R: return 77;
+    case KEY_T: return 79; case KEY_Y: return 81; case KEY_U: return 83; case KEY_I: return 84;
+    case KEY_O: return 86; case KEY_P: return 88;
+        // Black Keys: (Patterns mapping to Sharps)
+    case KEY_S: return 61; case KEY_D: return 63; case KEY_G: return 66; case KEY_H: return 68;
+    case KEY_J: return 70; case KEY_L: return 73; case KEY_SEMICOLON: return 75;
+    case KEY_TWO: return 73; case KEY_THREE: return 75; case KEY_FIVE: return 78;
+    case KEY_SIX: return 80; case KEY_SEVEN: return 82; case KEY_NINE: return 85;
+    case KEY_ZERO: return 87; case KEY_EQUAL: return 90;
+    default: return -1;
+    }
+}
+
+std::string GetNoteName(int midi) {
+    if (midi < 0) return "";
+    std::string names[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+    return names[midi % 12] + std::to_string((midi / 12) - 1);
+}
+
 int main() {
-    InitWindow(screenWidth, screenHeight, "Ear Trainer - Raylib");
+    // 1. Initialization
+    InitWindow(screenWidth, screenHeight, "Ear Trainer - C4 to E6");
     InitAudioDevice();
 
     SetAudioStreamBufferSizeDefault(1024);
@@ -55,77 +71,98 @@ int main() {
     SetAudioStreamCallback(stream, MyAudioCallback);
     PlayAudioStream(stream);
 
-    int targetNote = 60 + GetRandomValue(0, 12);
+    // 2. Game State
+    int targetNote = -1;
     int userGuess = -1;
-    bool showResult = false;
-    std::string feedback = "Listen to the note...";
-
-    // First play
-    frequency = 440.0f * powf(2.0f, (targetNote - 69) / 12.0f);
-    volume = 0.5f;
+    bool gameStarted = false;
+    std::string feedback = "Press SPACE to generate a random note";
 
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
-        // Input Handling
-        int key = GetKeyPressed();
-        int pressedMidi = GetMidiFromKey(key);
+        // --- Input Logic ---
+        if (IsKeyPressed(KEY_SPACE)) {
+            targetNote = GetRandomValue(60, 88); // Range C4 (60) to E6 (88)
+            TriggerNote(targetNote);
+            gameStarted = true;
+            feedback = "Guess the note!";
+            userGuess = -1;
+        }
 
-        if (pressedMidi != -1) {
+        int pressedKey = GetKeyPressed();
+        int pressedMidi = GetMidiFromKey(pressedKey);
+
+        if (pressedMidi != -1 && gameStarted) {
             userGuess = pressedMidi;
-            frequency = 440.0f * powf(2.0f, (userGuess - 69) / 12.0f);
-            volume = 0.5f;
-
             if (userGuess == targetNote) {
-                feedback = "CORRECT! Press SPACE for next.";
-                showResult = true;
+                TriggerNote(userGuess);
+                feedback = "CORRECT! Press SPACE for new note.";
             }
             else {
-                feedback = "WRONG! Try again.";
+                // Play target note again to help the user
+                TriggerNote(targetNote);
+                feedback = "WRONG! Listen again and try.";
             }
         }
 
-        if (IsKeyPressed(KEY_SPACE) && showResult) {
-            targetNote = 60 + GetRandomValue(0, 12);
-            frequency = 440.0f * powf(2.0f, (targetNote - 69) / 12.0f);
-            volume = 0.5f;
-            showResult = false;
-            userGuess = -1;
-            feedback = "Guess the note!";
-        }
-
-        // 2. Drawing
+        // --- Drawing ---
         BeginDrawing();
-        ClearBackground(GetColor(0x181818FF));
+        ClearBackground(GetColor(0x121212FF));
 
-        // Previewer (Top)
-        DrawText("CURRENT NOTE", 320, 50, 20, GRAY);
+        // Note Previewer (Note Symbol)
         if (userGuess != -1) {
-            DrawText(GetNoteName(userGuess).c_str(), 360, 80, 50, GOLD);
+            DrawText(GetNoteName(userGuess).c_str(), 470, 40, 60, GOLD);
+        }
+        else {
+            DrawText("?", 485, 40, 60, GRAY);
         }
 
-        // Spectrogram Box (Center)
-        DrawRectangleLines(100, 150, 600, 250, RAYWHITE);
-        for (int i = 0; i < 598; i++) {
-            float y = sinf((i * 0.1f) + (float)GetTime() * 10.0f) * (volume * 100.0f);
-            DrawPixel(101 + i, 275 + (int)y, BLUE);
+        // Spectrogram/Visualizer Box (Center)
+        DrawRectangleLines(50, 120, 900, 250, DARKGRAY);
+        for (int i = 0; i < 898; i++) {
+            // Visual oscillation based on frequency/volume
+            float wave = GenerateTriangle(frequency * 0.02f, (float)i * 0.01f + (float)GetTime() * 5.0f);
+            DrawPixel(51 + i, 245 + (int)(wave * volume * 150.0f), VIOLET);
         }
 
-        // Feedback Text
-        DrawText(feedback.c_str(), 100, 420, 20, LIGHTGRAY);
+        DrawText(feedback.c_str(), 50, 390, 20, LIGHTGRAY);
 
-        // Keyboard (Bottom)
-        for (int i = 0; i < 12; i++) {
-            int midi = 60 + i;
-            bool isSharp = (midi % 12 == 1 || midi % 12 == 3 || midi % 12 == 6 || midi % 12 == 8 || midi % 12 == 10);
-            Rectangle r = { 100.0f + (i * 50.0f), 480.0f, 45.0f, 100.0f };
-            DrawRectangleRec(r, isSharp ? BLACK : RAYWHITE);
-            if (userGuess == midi) DrawRectangleLinesEx(r, 3, RED);
+        // --- Keyboard Rendering ---
+        float startX = 75.0f;
+        float whiteWidth = 50.0f;
+        float whiteHeight = 180.0f;
+        float blackWidth = 32.0f;
+        float blackHeight = 100.0f;
+
+        // Pass 1: White Keys (17 keys for C4-E6 range)
+        for (int i = 0; i < 17; i++) {
+            Rectangle r = { startX + (i * whiteWidth), 440, whiteWidth - 2, whiteHeight };
+            DrawRectangleRec(r, RAYWHITE);
+            DrawRectangleLinesEx(r, 1, BLACK);
+        }
+
+        // Pass 2: Black Keys (Thinner and Shorter)
+        int sharpsPattern[] = { 0, 1, 3, 4, 5 }; // Index of white key that has a sharp after it
+        for (int i = 0; i < 16; i++) {
+            int noteInOctave = i % 7;
+            bool needsSharp = false;
+            for (int p : sharpsPattern) if (noteInOctave == p) needsSharp = true;
+
+            if (needsSharp) {
+                Rectangle br = {
+                    startX + (i * whiteWidth) + (whiteWidth * 0.68f),
+                    440,
+                    blackWidth,
+                    blackHeight
+                };
+                DrawRectangleRec(br, BLACK);
+            }
         }
 
         EndDrawing();
     }
 
+    // Cleanup
     UnloadAudioStream(stream);
     CloseAudioDevice();
     CloseWindow();
