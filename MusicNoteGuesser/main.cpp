@@ -162,6 +162,9 @@ int GetMidiFromKey(int key) {
 int main() {
     InitWindow(screenWidth, screenHeight, "Music Note Guesser");
 
+    Font fontConsolas = LoadFont("C:\\Windows\\Fonts\\consola.ttf");
+    SetTextureFilter(fontConsolas.texture, TEXTURE_FILTER_BILINEAR);
+
     Image icon = LoadImage("icon.png");
     SetWindowIcon(icon);
     UnloadImage(icon);
@@ -285,8 +288,9 @@ int main() {
         DrawRectangle(0, 0, sidebarWidth, 650, { 35, 35, 35, 255 });
         auto drawBtn = [&](Rectangle r, const char* t, bool active, Color c = VIOLET) {
             DrawRectangleRec(r, active ? c : DARKGRAY);
-            DrawText(t, (int)r.x + 20, (int)r.y + 10, 20, WHITE);
-            };
+            Vector2 textPos = { r.x + 20, r.y + 10 };
+            DrawTextEx(fontConsolas, t, textPos, 20, 1.0f, WHITE);
+        };
         drawBtn({ 20, 60, 210, 40 }, "EASY", currentDiff == EASY);
         drawBtn({ 20, 110, 210, 40 }, "MEDIUM", currentDiff == MEDIUM);
         drawBtn({ 20, 160, 210, 40 }, "HARD", currentDiff == HARD);
@@ -302,8 +306,8 @@ int main() {
             DrawLine(boxX + i - 1, 190 + (int)(safeWaveform[(start + i - 1) % MAX_WAVE_SAMPLES] * 80),
                 boxX + i, 190 + (int)(safeWaveform[(start + i) % MAX_WAVE_SAMPLES] * 80), VIOLET);
         }
-        DrawText(feedback.c_str(), boxX, 320, 25, WHITE);
-        DrawText("SPACE to Replay | Play chords clearly (no sliding!)", boxX, 355, 18, GRAY);
+        DrawTextEx(fontConsolas, feedback.c_str(), { (float)boxX, 320 }, 25, 1.0f, WHITE);
+        DrawTextEx(fontConsolas, "SPACE to Replay | Play chords clearly (no sliding!)", { (float)boxX, 355 }, 18, 1.0f, GRAY);
 
         // Keyboard Rendering
         for (int i = 0; i < 17; i++) {
@@ -315,7 +319,11 @@ int main() {
                 int oct = (whiteMidi[i] / 12) - 1;
                 Rectangle lBox = { r.x + 4, r.y + 155, r.width - 8, 20 };
                 DrawRectangleRounded(lBox, 0.4f, 8, pressed ? MAROON : LIGHTGRAY);
-                DrawText(TextFormat("C%d", oct), (int)(lBox.x + lBox.width / 2 - MeasureText(TextFormat("C%d", oct), 15) / 2), (int)lBox.y + 3, 15, pressed ? WHITE : DARKGRAY);
+                Vector2 labelPos = {
+                    lBox.x + lBox.width / 2 - MeasureTextEx(fontConsolas, TextFormat("C%d", oct), 15, 1.0f).x / 2,
+                    lBox.y + 3
+                };
+                DrawTextEx(fontConsolas, TextFormat("C%d", oct), labelPos, 15, 1.0f, pressed ? WHITE : DARKGRAY);
             }
         }
         for (int i = 0; i < 16; i++) {
@@ -329,6 +337,7 @@ int main() {
         EndDrawing();
     }
 
+    UnloadFont(fontConsolas);
     CloseAudioDevice();
     CloseWindow();
     return 0;
