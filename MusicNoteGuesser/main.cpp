@@ -160,11 +160,17 @@ int GetMidiFromKey(int key) {
 }
 
 int main() {
-    InitWindow(screenWidth, screenHeight, "Chord Precision - Ear Trainer");
+    InitWindow(screenWidth, screenHeight, "Music Note Guesser");
+
+    Image icon = LoadImage("icon.png");
+    SetWindowIcon(icon);
+    UnloadImage(icon);
+
     InitAudioDevice();
     AudioStream stream = LoadAudioStream(sampleRate, 32, 1);
     SetAudioStreamCallback(stream, MyAudioCallback);
     PlayAudioStream(stream);
+
     SetTargetFPS(60);
 
     float successTimer = 0, postSuccessTimer = 0;
@@ -219,14 +225,14 @@ int main() {
                 if (IsKeyPressed(k)) {
                     TriggerNote(midi);
                     float curT = (float)GetTime();
-                    // Detect slide (glissando) if interval between keys is < 120ms
+                    // Detect slide: if interval between keys is < 120ms
                     if (curT - lastKeyTime < 0.12f) keyboardDragBlockTimer = 0.5f;
                     lastKeyTime = curT;
                 }
             }
         }
 
-        // 3. Mouse Piano Input
+        // 3. Mouse Piano Input (With Glissando Security)
         float sX = sidebarWidth + 50;
         int currentMouseMidi = -1;
         for (int i = 0; i < 16; i++) {
@@ -319,8 +325,10 @@ int main() {
                 DrawRectangleLinesEx(br, 1, activeKeys.count(blackMidi[i]) ? BLACK : DARKGRAY);
             }
         }
+
         EndDrawing();
     }
+
     CloseAudioDevice();
     CloseWindow();
     return 0;
