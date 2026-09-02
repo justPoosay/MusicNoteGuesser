@@ -16,14 +16,11 @@ Music Note Guesser is an interactive web-based educational tool designed to help
 - **CSS3** - Responsive design and modern styling.
 - **JavaScript (ES6+)** - Core game logic, note generation, and score tracking.
 
-## Getting Started
+## Installation & Build
 
-### Prerequisites
+This project is built using Visual Studio 2022.
 
-No special installation or local server environment is required. You only need a modern web browser (e.g., Chrome, Firefox, Edge, Safari).
-
-### Running the Application
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/justPoosay/MusicNoteGuesser.git
+1.  Clone the repository.
+2.  Open the solution file (`.sln`).
+3.  Ensure the configuration is set to **Release** or **Debug** (x64).
+4.  Build and run the project.
