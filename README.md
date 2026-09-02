@@ -26,4 +26,4 @@ No special installation or local server environment is required. You only need a
 
 1. Clone the repository:
    ```bash
-   git clone [https://github.com/justPoosay/MusicNoteGuesser.git](https://github.com/justPoosay/MusicNoteGuesser.git)
+   git clone https://github.com/justPoosay/MusicNoteGuesser.git
